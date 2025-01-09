@@ -1,3 +1,6 @@
+import warnings
+
+warnings.filterwarnings("ignore")
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
@@ -6,6 +9,7 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import TQDMProgressBar
+import ray.train
 from ray import tune
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
 from ray.tune.search.hebo import HEBOSearch
@@ -61,7 +65,7 @@ def train_scover_bs(config,
                          gpus=num_gpus,
                          callbacks=[tune_callback, pb_callback],
                          logger=TensorBoardLogger(
-                             save_dir=tune.get_trial_dir(),
+                             save_dir=ray.train.get_context().get_trial_dir(),
                              name="",
                              version="."))
     trainer.fit(sn, train_dataloaders=train_loader, val_dataloaders=val_loader)
@@ -97,7 +101,7 @@ def train_scover(config,
                          progress_bar_refresh_rate=0,
                          callbacks=[tune_callback],
                          logger=TensorBoardLogger(
-                             save_dir=tune.get_trial_dir(),
+                             save_dir=ray.train.get_context().get_trial_dir(),
                              name="",
                              version="."))
     trainer.fit(sn, train_dataloaders=train_loader, val_dataloaders=val_loader)
@@ -129,7 +133,7 @@ def tune_scover_asha_hyperopt(train_data,
         "sigma_motifs": hp.loguniform("sigma_motifs", np.log(1e-7),
                                       np.log(1e-3)),
         "sigma_net": hp.loguniform("sigma_net", np.log(1e-5), np.log(1e-2)),
-        "batch_size": hp.choice("batch_size", [64, 128, 256, 512])
+        "batch_size": hp.choice("batch_size", [64, 512])
     }
     scheduler = ASHAScheduler(metric='loss',
                               mode='min',
